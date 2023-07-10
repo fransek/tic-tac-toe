@@ -4,6 +4,8 @@ export enum TileState {
   O = 'O',
 }
 
+export type BoardState = Map<number, TileState>
+
 export enum PlayerState {
   X = 'X',
   O = 'O',
@@ -22,7 +24,7 @@ export const initialBoardState = new Map([
 ])
 
 export const checkForThreeInARow = (
-  boardState: Map<number, TileState>,
+  boardState: BoardState,
   startingTileIndex: number,
   increment: number
 ) => {
@@ -33,7 +35,7 @@ export const checkForThreeInARow = (
   return tile1 !== TileState.Empty && tile1 === tile2 && tile2 === tile3
 }
 
-export const checkForWinner = (boardState: Map<number, TileState>) => {
+export const checkForWinner = (boardState: BoardState) => {
   for (let i = 0; i < 3; i++) {
     if (checkForThreeInARow(boardState, i * 3, 1)) return true
     if (checkForThreeInARow(boardState, i, 3)) return true
@@ -43,4 +45,27 @@ export const checkForWinner = (boardState: Map<number, TileState>) => {
   return false
 }
 
+export const isDraw = (boardState: BoardState) => {
+  for (let i = 0; i < 9; i++) {
+    if (boardState.get(i) === TileState.Empty) return false
+  }
+  return true
+}
+
 export const cn = (...classes: string[]) => classes.filter(Boolean).join(' ')
+
+export type RequestBody = {
+  0: TileState
+  1: TileState
+  2: TileState
+  3: TileState
+  4: TileState
+  5: TileState
+  6: TileState
+  7: TileState
+  8: TileState
+}
+
+export type ResponseBody = {
+  tileIndex: number
+}

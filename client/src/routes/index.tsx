@@ -1,30 +1,62 @@
-import { For, createSignal } from 'solid-js'
 import {
+  BoardState,
   PlayerState,
+  ResponseBody,
   TileState,
   checkForWinner,
   cn,
   initialBoardState,
+  isDraw,
 } from '~/utils'
+import { For, createMemo, createSignal } from 'solid-js'
 
 export default function Home() {
   const [boardState, setBoardState] = createSignal(initialBoardState)
-  const [isPlayerXTurn, setIsPlayerXTurn] = createSignal(true)
   const [winner, setWinner] = createSignal('')
+  const gameIsDraw = createMemo(() => isDraw(boardState()))
 
-  const handleClick = (tileIndex: number, player: PlayerState) => {
+  const handleClick = async (tileIndex: number) => {
     if (winner()) return
     const newBoardState = new Map(boardState())
-    newBoardState.set(tileIndex, isPlayerXTurn() ? TileState.X : TileState.O)
+    newBoardState.set(tileIndex, TileState.X)
     setBoardState(newBoardState)
-    setIsPlayerXTurn(!isPlayerXTurn())
-    if (checkForWinner(boardState())) setWinner(player)
+
+    if (checkForWinner(newBoardState)) {
+      setWinner(PlayerState.X)
+    } else if (!isDraw(newBoardState)) {
+      const newBoardState2 = await getAIMove()
+      if (checkForWinner(newBoardState2)) {
+        setWinner(PlayerState.O)
+      }
+    }
+  }
+
+  const getAIMove = async (): Promise<BoardState> => {
+    const body: Record<number, TileState> = {}
+
+    Array.from(boardState()).forEach(([key, value]) => {
+      body[key] = value
+    })
+
+    const res = await fetch('http://localhost:8080/move', {
+      method: 'post',
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const { tileIndex }: ResponseBody = await res.json()
+
+    const newBoardState = new Map(boardState())
+    newBoardState.set(tileIndex, TileState.O)
+    setBoardState(newBoardState)
+    return newBoardState
   }
 
   const restartGame = () => {
     setBoardState(initialBoardState)
     setWinner('')
-    setIsPlayerXTurn(true)
   }
 
   return (
@@ -41,24 +73,18 @@ export default function Home() {
                   ? 'text-red-500'
                   : 'text-blue-500'
               )}
-              onclick={() =>
-                handleClick(
-                  tileIndex,
-                  isPlayerXTurn() ? PlayerState.X : PlayerState.O
-                )
-              }
+              onclick={() => handleClick(tileIndex)}
             >
               <div class='text-center text-6xl font-bold'>{value}</div>
             </div>
           )}
         </For>
       </div>
-      {winner() && (
-        <div class='text-center mt-2'>
-          <h2>The winner is {winner()}!</h2>
-          <button onclick={restartGame}>Restart</button>
-        </div>
-      )}
+      <div class='text-center mt-2'>
+        {winner() && <h2>The winner is {winner()}!</h2>}
+        {gameIsDraw() && <h2>Draw</h2>}
+        <button onclick={restartGame}>Restart</button>
+      </div>
     </div>
   )
 }
