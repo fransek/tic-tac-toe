@@ -13,10 +13,12 @@ import { For, createMemo, createSignal } from 'solid-js'
 export default function Home() {
   const [boardState, setBoardState] = createSignal(initialBoardState)
   const [winner, setWinner] = createSignal('')
+  const [waitingForAI, setWaitingForAI] = createSignal(false)
   const gameIsDraw = createMemo(() => isDraw(boardState()))
 
   const handleClick = async (tileIndex: number) => {
-    if (winner()) return
+    if (winner() || waitingForAI()) return
+
     const newBoardState = new Map(boardState())
     newBoardState.set(tileIndex, TileState.X)
     setBoardState(newBoardState)
@@ -24,17 +26,20 @@ export default function Home() {
     if (checkForWinner(newBoardState)) {
       setWinner(PlayerState.X)
     } else if (!isDraw(newBoardState)) {
-      const newBoardState2 = await getAIMove()
+      setWaitingForAI(true)
+      const newBoardState2 = await getAIMove(newBoardState)
+      setWaitingForAI(false)
+
       if (checkForWinner(newBoardState2)) {
         setWinner(PlayerState.O)
       }
     }
   }
 
-  const getAIMove = async (): Promise<BoardState> => {
+  const getAIMove = async (boardState: BoardState): Promise<BoardState> => {
     const body: Record<number, TileState> = {}
 
-    Array.from(boardState()).forEach(([key, value]) => {
+    Array.from(boardState).forEach(([key, value]) => {
       body[key] = value
     })
 
@@ -48,7 +53,7 @@ export default function Home() {
 
     const { tileIndex }: ResponseBody = await res.json()
 
-    const newBoardState = new Map(boardState())
+    const newBoardState = new Map(boardState)
     newBoardState.set(tileIndex, TileState.O)
     setBoardState(newBoardState)
     return newBoardState
@@ -67,7 +72,7 @@ export default function Home() {
             <div
               class={cn(
                 'w-20 h-20 bg-white flex justify-center items-center',
-                value === TileState.Empty && !winner()
+                value === TileState.Empty && !winner() && !waitingForAI()
                   ? 'cursor-pointer'
                   : value === TileState.X
                   ? 'text-red-500'
